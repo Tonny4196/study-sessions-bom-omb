@@ -2,7 +2,6 @@ package impl
 
 import (
 	"fmt"
-	"math/bits"
 	"reflect"
 )
 
@@ -383,15 +382,9 @@ func (h *HashMapImplementation) GetAllEntries() map[string]interface{} {
 	return result
 }
 
-// Check if two keys are equal
 func equalKeys(k1, k2 interface{}) bool {
 	if k1 == nil || k2 == nil {
 		return k1 == k2
 	}
 	return reflect.DeepEqual(k1, k2)
-}
-
-// Calculate log base 2
-func log2(x uint64) int {
-	return bits.Len64(x) - 1
 }
