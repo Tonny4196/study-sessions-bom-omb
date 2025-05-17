@@ -4,7 +4,8 @@ import (
 	"bufio"
 	"log"
 	"os"
-	"strings"
+	"io"
+	"bytes"
 )
 
 // GrepImplementation はGrepの基本実装を提供する
@@ -22,20 +23,45 @@ func (g *GrepImplementation) Search(filePath, pattern string) []string {
 	}
 	defer f.Close()
 
-	// 行単位でスキャン
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		// パターンが含まれているか判定
-		if strings.Contains(line, pattern) {
-			result = append(result, line)
-		}
-	}
+	info, _ := f.Stat()
 
-	// スキャン時のエラーがあればログに出す
-	if err := scanner.Err(); err != nil {
-		log.Printf("failed to read file %s: %v", filePath, err)
+	// 行単位でスキャン
+	reader := bufio.NewReaderSize(f, optimalBufSize(info.Size()))
+	keyword := []byte(pattern)
+
+	for {
+		line, err := reader.ReadSlice('\n')
+		if err != nil && err != io.EOF {
+			log.Printf("failed to read file %s: %v", filePath, err)
+			return nil
+		}
+		// パターンが含まれているか判定
+		if bytes.Contains(line, keyword) {
+			// 行の末尾の改行を削除
+			if n := len(line); n > 0 && line[n-1] == '\n' {
+				line = line[:n-1]
+				if n > 1 && line[n-2] == '\r' {
+						line = line[:n-2]
+				}
+			}
+      result = append(result, string(line))
+    }
+		if err == io.EOF {
+      break
+    }
 	}
 
 	return result
+}
+
+// optimalBufSize はファイルサイズに基づいて最適なバッファサイズを決定する
+func optimalBufSize(fileSize int64) int {
+    switch {
+    case fileSize < 64*1024:
+        return 4 * 1024
+    case fileSize < 5*1024*1024:
+        return 64 * 1024
+    default:
+        return 256 * 1024
+    }
 }
